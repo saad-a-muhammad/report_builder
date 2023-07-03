@@ -1,0 +1,48 @@
+{
+  "name": "report-bilder",
+  "version": "1.0.0",
+  "description": "Report Builder server",
+  "main": "index.js",
+  "scripts": {
+    "start": "nodemon index",
+    "dev": "nodemon backend/server",
+    "prod": "nodemon backend/server",
+    "seed": "node backend/utils/seeder.js",
+    "test": "mocha --timeout 60000 --exit"
+  },
+  "author": "Pariscope Labs Ltd",
+  "license": "ISC",
+  "dependencies": {
+    "@aws-sdk/client-ses": "^3.95.0",
+    "@google-cloud/translate": "^7.0.1",
+    "cors": "^2.8.5",
+    "crypto-js": "^4.1.1",
+    "csv-writer": "^1.6.0",
+    "dotenv": "^16.0.1",
+    "exceljs": "^4.3.0",
+    "express": "^4.17.3",
+    "fs": "^0.0.1-security",
+    "handlebars": "^4.7.7",
+    "helmet": "^6.0.1",
+    "html-entities": "^2.3.3",
+    "image-size": "^1.0.2",
+    "jsonwebtoken": "^9.0.0",
+    "jspdf": "^2.5.1",
+    "jspdf-autotable": "^3.5.23",
+    "jszip": "^3.10.1",
+    "mkdirp": "^1.0.4",
+    "moment": "^2.29.3",
+    "mysql": "^2.18.1",
+    "mysql2": "^2.3.3",
+    "node-cron": "^3.0.0",
+    "nodemailer": "^6.7.5",
+    "path": "^0.12.7",
+    "sequelize": "^6.19.0",
+    "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "chai": "^4.3.6",
+    "chai-http": "^4.3.0",
+    "mocha": "^10.0.0"
+  }
+}
