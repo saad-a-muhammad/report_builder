@@ -56,7 +56,7 @@ exports.connectionList = catchAsyncErrors(async (req,res) => {
 });
 
 /**
- * @name connectionList
+ * @name testConnection
  * @description test connection and return tables.
  * @param {object} req
  * @param {object} res
@@ -156,7 +156,7 @@ exports.testConnection = catchAsyncErrors(async ({body:{connection_type, host, p
 });
 
 /**
- * @name createConnection
+ * @name tableList
  * @description returns database tables.
  * @param {object} req
  * @param {object} res
@@ -192,7 +192,6 @@ exports.tableList = catchAsyncErrors(async ({query:{connection_id}},res) => {
       },
       type: QueryTypes.SELECT
     });
-    console.log(datalist)
     res.status(200).json({
       success: true,
       data: datalist
@@ -206,7 +205,7 @@ exports.tableList = catchAsyncErrors(async ({query:{connection_id}},res) => {
 });
 
 /**
- * @name createConnection
+ * @name viewList
  * @description returns database views.
  * @param {object} req
  * @param {object} res
@@ -243,7 +242,60 @@ exports.viewList = catchAsyncErrors(async ({query:{connection_id}},res) => {
       },
       type: QueryTypes.SELECT
     });
-    console.log(datalist)
+    res.status(200).json({
+      success: true,
+      data: datalist
+    });
+  } else {
+    res.status(200).json({
+      success: true,
+      message: 'No connection Found!'
+    });
+  }
+});
+
+/**
+ * @name columnList
+ * @description returns database table columns.
+ * @param {object} req
+ * @param {object} res
+ * @param {function} next
+ *
+ * @returns {array} datalist
+ */
+
+exports.columnList = catchAsyncErrors(async ({query:{connection_id, table_name}},res) => {
+  const connections = await sequelize.query(`SELECT * FROM db_connections WHERE id = :connID`,{
+    replacements:{
+      connID: connection_id
+    },
+    type: QueryTypes.SELECT
+  });
+
+  if (connections.length > 0) {
+    const connection = connections[0];
+    const connConfig = {
+      username: connection.host_username,
+      password: connection.host_password,
+      database: connection.default_db,
+      host: connection.host_name,
+      port: connection.host_port,
+      dialect: connection.connection_type
+    }
+    const connSequelize = new Sequelize(connection.default_db, connection.host_username, connection.host_password, connConfig);
+
+    const datalist = await connSequelize.query(
+      `SELECT column_name, data_type
+      FROM information_schema.columns
+      WHERE table_name = :tbl_name
+        AND table_schema = :db;`,
+    {
+      replacements:{
+        db: connection.default_db,
+        tbl_name : table_name
+      },
+      type: QueryTypes.SELECT
+    });
     res.status(200).json({
       success: true,
       data: datalist
