@@ -84,7 +84,9 @@ exports.removeConnection = catchAsyncErrors(async ({query:{connection_id}},res) 
  */
 exports.connectionList = catchAsyncErrors(async (req,res) => {
  
-  const connection =  await sequelize.query(`SELECT * FROM db_connections`);
+  const connection =  await sequelize.query(`SELECT * FROM db_connections`,{
+    type: QueryTypes.SELECT
+  });
 
   res.status(200).json({
     success: true,
