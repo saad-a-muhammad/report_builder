@@ -17,24 +17,60 @@ const { Pool } = require('pg');
  */
 exports.createConnection = catchAsyncErrors(async ({body:{connection_name, connection_type, host, port, user_name, password, user_id, default_db, default_schema }},res) => {
  
-  await sequelize.query(`INSERT INTO db_connections (connection_name, connection_type, host_name, host_port, host_username, host_password, user_id, default_db, default_db_schema ) VALUES (:connection_name, :connection_type, :host_name,:host_port, :host_username, :host_password, :user_id, :default_db, :default_schema)`,{
-    replacements:{
-      connection_name: connection_name,
-      connection_type: connection_type,
-      host_name: host,
-      host_port: port,
-      host_username: user_name,
-      host_password: password,
-      user_id : 1, //user_id - change later
-      default_db: default_db,
-      default_schema: default_schema
-    }
-  });
+  try {
+    await sequelize.query(`INSERT INTO db_connections (connection_name, connection_type, host_name, host_port, host_username, host_password, user_id, default_db, default_db_schema ) VALUES (:connection_name, :connection_type, :host_name,:host_port, :host_username, :host_password, :user_id, :default_db, :default_schema)`,{
+      replacements:{
+        connection_name: connection_name,
+        connection_type: connection_type,
+        host_name: host,
+        host_port: port,
+        host_username: user_name,
+        host_password: password,
+        user_id : 1, //user_id - change later
+        default_db: default_db,
+        default_schema: default_schema
+      }
+    });
+  
+    res.status(200).json({
+      success: true,
+      message: 'Connection created'
+    });
+  } catch (error) {
+    res.status(200).json({
+      success: false,
+      message: error
+    });
+  }
+});
 
-  res.status(200).json({
-    success: true,
-    message: 'Connection created'
-  });
+/**
+ * @name removeConnection
+ * @description remove db connection.
+ * @param {object} req
+ * @param {object} res
+ * @param {function} next
+ *
+ * @returns {string} message
+ */
+exports.removeConnection = catchAsyncErrors(async ({query:{connection_id}},res) => {
+ 
+  try {
+    await sequelize.query(`delete from db_connections where id = :id`,{
+      replacements:{
+        id: connection_id,
+      }
+    });
+    res.status(200).json({
+      success: true,
+      message: 'Connection removed!'
+    });
+  } catch (error) {
+    res.status(200).json({
+      success: false,
+      message: error
+    });
+  }
 });
 
 /**
