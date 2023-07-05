@@ -185,10 +185,10 @@ exports.tableList = catchAsyncErrors(async ({query:{connection_id}},res) => {
     const connSequelize = new Sequelize(connection.default_db, connection.host_username, connection.host_password, connConfig);
 
     const datalist = await connSequelize.query(
-     `SELECT table_name FROM information_schema.tables WHERE table_schema = :db and table_type = 'BASE TABLE';`,
+     `SELECT table_name as tablename FROM information_schema.tables WHERE table_schema = :db and table_type = 'BASE TABLE';`,
     {
       replacements:{
-        db: connection.default_db
+        db: connection.connection_type === 'postgres' ? connection.default_db_schema :  connection.default_db,
       },
       type: QueryTypes.SELECT
     });
@@ -235,10 +235,10 @@ exports.viewList = catchAsyncErrors(async ({query:{connection_id}},res) => {
     const connSequelize = new Sequelize(connection.default_db, connection.host_username, connection.host_password, connConfig);
 
     const datalist = await connSequelize.query(
-      `SELECT table_name FROM information_schema.tables WHERE table_schema = :db and table_type = 'VIEW';`,
+      `SELECT table_name as tablename FROM information_schema.tables WHERE table_schema = :db and table_type = 'VIEW';`,
     {
       replacements:{
-        db: connection.default_db
+        db: connection.connection_type === 'postgres' ? connection.default_db_schema :  connection.default_db,
       },
       type: QueryTypes.SELECT
     });
@@ -291,7 +291,7 @@ exports.columnList = catchAsyncErrors(async ({query:{connection_id, table_name}}
         AND table_schema = :db;`,
     {
       replacements:{
-        db: connection.default_db,
+        db: connection.connection_type === 'postgres' ? connection.default_db_schema :  connection.default_db,
         tbl_name : table_name
       },
       type: QueryTypes.SELECT
@@ -308,5 +308,37 @@ exports.columnList = catchAsyncErrors(async ({query:{connection_id, table_name}}
   }
 });
 
+/**
+ * @name schemaList
+ * @description returns database schemas for postgres.
+ * @param {object} req
+ * @param {object} res
+ * @param {function} next
+ *
+ * @returns {array} datalist
+ */
+exports.schemaList = catchAsyncErrors(async ({body:{connection_type, host, port, user_name, password, default_db }},res) => {
 
+  const connConfig = {
+    username: user_name,
+    password: password,
+    database: default_db,
+    host: host,
+    port: port,
+    dialect: connection_type
+  }
+  const connSequelize = new Sequelize(default_db, user_name, password, connConfig);
+
+  const datalist = await connSequelize.query(
+    `SELECT schema_name
+    FROM information_schema.schemata
+    WHERE schema_name NOT LIKE 'pg_%' AND schema_name != 'information_schema';`,
+  {
+    type: QueryTypes.SELECT
+  });
+  res.status(200).json({
+    success: true,
+    data: datalist
+  });
+});
 
