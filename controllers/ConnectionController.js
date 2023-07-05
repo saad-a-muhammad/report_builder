@@ -17,7 +17,7 @@ const { Pool } = require('pg');
  */
 exports.createConnection = catchAsyncErrors(async ({body:{connection_name, connection_type, host, port, user_name, password, user_id, default_db, default_schema }},res) => {
  
-  await sequelize.query(`INSERT INTO db_connections (connection_name, connection_type, host_name, host_port, host_username, host_password, user_id, default_db, default_db_schema ) VALUES (:connection_name, :connection_type, :host_name,:host_port, :host_username, :host_password, :user_id, :default_db), :default_schema`,{
+  await sequelize.query(`INSERT INTO db_connections (connection_name, connection_type, host_name, host_port, host_username, host_password, user_id, default_db, default_db_schema ) VALUES (:connection_name, :connection_type, :host_name,:host_port, :host_username, :host_password, :user_id, :default_db, :default_schema)`,{
     replacements:{
       connection_name: connection_name,
       connection_type: connection_type,
@@ -27,7 +27,7 @@ exports.createConnection = catchAsyncErrors(async ({body:{connection_name, conne
       host_password: password,
       user_id : 1, //user_id - change later
       default_db: default_db,
-      default_schema : default_schema
+      default_schema: default_schema
     }
   });
 
