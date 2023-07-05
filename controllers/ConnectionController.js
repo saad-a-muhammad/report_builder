@@ -47,7 +47,9 @@ exports.createConnection = catchAsyncErrors(async ({body:{connection_name, conne
  */
 exports.connectionList = catchAsyncErrors(async (req,res) => {
  
-  const connection =  await sequelize.query(`SELECT * FROM db_connections`);
+  const connection =  await sequelize.query(`SELECT * FROM db_connections`,{
+    type: QueryTypes.SELECT
+  });
 
   res.status(200).json({
     success: true,
