@@ -28,7 +28,7 @@ exports.createConnection = catchAsyncErrors(async ({body:{connection_name, conne
         host_password: password,
         user_id : 1, //user_id - change later
         default_db: default_db,
-        default_schema: default_schema
+        default_schema: default_schema ? default_schema : null
       }
     });
   
