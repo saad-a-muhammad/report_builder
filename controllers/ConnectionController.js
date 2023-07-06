@@ -31,10 +31,33 @@ exports.createConnection = catchAsyncErrors(async ({body:{connection_name, conne
     }
   });
 
-  res.status(200).json({
-    success: true,
-    message: 'Connection created'
-  });
+/**
+ * @name removeConnection
+ * @description remove db connection.
+ * @param {object} req
+ * @param {object} res
+ * @param {function} next
+ *
+ * @returns {string} message
+ */
+exports.removeConnection = catchAsyncErrors(async ({query:{connection_id}},res) => {
+ 
+  try {
+    await sequelize.query(`delete from db_connections where id = :id`,{
+      replacements:{
+        id: connection_id,
+      }
+    });
+    res.status(200).json({
+      success: true,
+      message: 'Connection removed!'
+    });
+  } catch (error) {
+    res.status(200).json({
+      success: false,
+      message: error
+    });
+  }
 });
 
 /**
