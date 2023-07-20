@@ -80,9 +80,9 @@ exports.saveReport = catchAsyncErrors(async ({body:{connection_type, host, port,
  *
  * @returns {string} query string
  */
-const buildReportQuery = catchAsyncErrors(async (connection, components) => {
+async function buildReportQuery(connection, components){
     // build query functionality
-});
+};
 
  
 
