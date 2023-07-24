@@ -56,7 +56,7 @@ exports.previewReport = catchAsyncErrors(async ({body:{ joins, connection }},res
  */
 exports.saveReport = catchAsyncErrors(async ({body:{connection_id, name, description, data_query, data_model}},res) => {
   try {
-    const connections = await sequelize.query(`SELECT * FROM db_connections WHERE id = :connID`,{
+    const connections = await sequelize.query(`SELECT * FROM db_connections WHERE id = :connID LIMIT 1`,{
         replacements:{
           connID: connection_id
         },
@@ -87,6 +87,31 @@ exports.saveReport = catchAsyncErrors(async ({body:{connection_id, name, descrip
     console.log(error)
   }
 });
+
+/**
+ * @name reportList
+ * @description get report (data models) list.
+ * @param {object} req
+ * @param {object} res
+ * @param {function} next
+ *
+ * @returns {array} user
+ */
+exports.reportList = catchAsyncErrors(async ({query: {connection_id}},res) => {
+ 
+  const datalist =  await sequelize.query(`SELECT * FROM report_models WHERE connection_id = :connection_id`,{
+    replacements:{
+      connection_id: connection_id
+    },
+    type: QueryTypes.SELECT
+  });
+
+  res.status(200).json({
+    success: true,
+    data: datalist
+  });
+});
+
 
 /**
  * @name buildReportQuery
