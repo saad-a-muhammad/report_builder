@@ -15,7 +15,7 @@ const { Pool } = require('pg');
  *
  * @returns {array} user
  */
-exports.createReport = catchAsyncErrors(async ({body:{ joins, connection }},res) => {
+exports.createReport = async ({body:{ joins, connection }},res) => {
   
   
   const p_table = joins.map(e=>e.from_table);
@@ -38,18 +38,28 @@ exports.createReport = catchAsyncErrors(async ({body:{ joins, connection }},res)
   if (joins.length>1) {
     for (let i=1; i < joins.length; i++) {
       const el = joins[i];
-      query+=` ${el.type} ${el.to_table} ${el.to_table.substring(0,2)} ON ${el.from_table.substring(0,2)}.${el.from_column.column_name} = ${el.to_table.substring(0,2)}.${el.to_column.column_name} `
+      query+=` ${el.type} ${el.to_table} ON ${el.from_table}.${el.from_column.column_name} = ${el.to_table}.${el.to_column.column_name} `
     }
   } 
   console.log(query);
-  const data  = await connSequelize.query(query,{
-    type: QueryTypes.SELECT
-  });
+  try {
+    const data = await connSequelize.query(query,{
+      type: QueryTypes.SELECT
+    });
+    
+    res.status(200).json({
+      data: data,
+      query,
+      success: true
+    });
+  } catch (error) {
+    
+    res.status(200).json({
+      data: error.message,
+      query,
+      success: false
+    });
+  }
   
-  res.status(200).json({
-    data: data,
-    query,
-    success: true
-  });
-});
+};
 
