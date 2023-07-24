@@ -2,9 +2,7 @@ const express = require('express');
 const route = express.Router();
 //import controller
 const { createConnection, connectionList, testConnection, tableList, viewList, columnList, schemaList, removeConnection } = require('../controllers/ConnectionController');
-const { createReport } = require('../controllers/ReportController')
-
-const { previewReport, saveReport} = require('../controllers/ReportBuilderController');
+const { previewReport, saveReport, reportList } = require('../controllers/ReportController')
 
 
 /* -----all API routes for Report builder data----- */
@@ -18,10 +16,10 @@ route.route('/get-schemas').post(schemaList);
 route.route('/get-tables').get(tableList);
 route.route('/get-views').get(viewList);
 route.route('/get-columns').get(columnList);
-route.route('/get-report-data').post(createReport);
 
 // report builder routes
-route.route('/preview-report').post(previewReport);
+route.route('/get-report-data').post(previewReport);
+route.route('/get-reports').get(reportList);
 route.route('/save-report').post(saveReport);
 
 
