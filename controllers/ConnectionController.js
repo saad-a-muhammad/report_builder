@@ -380,33 +380,3 @@ exports.schemaList = catchAsyncErrors(async ({body:{connection_type, host, port,
     data: datalist
   });
 });
-
-/**
- * @name createConnection
- * @description create db connection.
- * @param {object} req
- * @param {object} res
- * @param {function} next
- *
- * @returns {array} user
- */
-exports.createReport = catchAsyncErrors(async ({body:{ joins, connection }},res) => {
-  
-  
-  const [p_table] = joins.map(e=>e.from_table);
-
-  // const s_table = joins.map(e=>e.to_table);
-  
-  let query = `SELECT * FROM ${p_table} ${p_table.substring(0,2)}`
-  for (const el of joins.entries()) {
-    query+=` ${el.type} ${el.to_table} ${el.to_table.substring(0,2)} WHERE ${p_table.substring(0,2)}.${el.from_column.column_name} = ${el.to_table.substring(0,2)}.${el.to_column.column_name} `
-  }
-  sequelize.query(query,{
-    type: QueryTypes.SELECT
-  })
-  res.status(200).json({
-    success: true,
-    message: 'Connection created'
-  });
-});
-
