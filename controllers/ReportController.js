@@ -85,7 +85,7 @@ exports.saveReport = catchAsyncErrors(async ({body:{connection_id, name, descrip
       });  
     } else {
       return res.status(200).json({
-        success: true,
+        success: false,
         message: 'No Connection!'
       });
     }
