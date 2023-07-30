@@ -9,6 +9,10 @@ const moment = require('moment');
 const path = require("path");
 const ExcelJS = require("exceljs");
 const fs = require('fs');
+const { jsPDF } = require("jspdf");
+require('jspdf-autotable');
+require("../config/fonts/Arial-Unicode-normal.js");
+require("../config/fonts/Arial-Unicode-Bold-normal.js");
 
 /**
  * @name previewReport
@@ -290,6 +294,135 @@ exports.generateExcel = catchAsyncErrors(async ({ body },res) => {
 });
 
 /**
+ * @name generateCsv
+ * @description Generate csv file and buffer
+ * @param {array} datalist
+ * @param {array} columns
+ * @param {object} body
+ * @param {object} res
+ *
+ * @returns {array} path
+ */
+exports.generateCsv = catchAsyncErrors(async ({ body },res) => {
+  const { datalist, columns, details } = body;
+  let fileName = '';
+  try {
+    let rep_name = convertToSlug(details['rep_name']);
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet("WorkSheet", {
+      properties: { defaultRowHeight: 20 },
+    });
+    worksheet.insertRow(1, columns);
+    datalist.forEach((row, index) => {
+      let values = [];
+      columns.forEach((tableColumn) => {
+        values.push(row[tableColumn]);
+      });
+      worksheet.insertRow(index + 2, values);
+    });
+    const data = await workbook.csv.writeBuffer();
+    var universalBOM = "\uFEFF";
+    fileName = `/csv/report_${rep_name}_${moment().format("MMDDYYYY_hhmmssa")}.csv`; // path for file
+    const filePath = path.join(global.rootPath, `/public${fileName}`);
+    fs.createWriteStream(filePath).write(universalBOM+data);
+
+  } catch (error) {
+    console.log(error)
+  }
+  res.status(200).json({
+    success: true,
+    data: fileName
+  });
+})
+
+/**
+ * @name generatePdf
+ * @description Generate pdf file and buffer
+ * @param {array} datalist
+ * @param {array} columns
+ * @param {object} body
+ * @param {object} res
+ *
+ * @returns {array} path
+ */
+exports.generatePdf = catchAsyncErrors(async ({ body },res) => {
+  const { datalist, columns, details } = body;
+  let fileName = '';
+  try {
+    let orientation = details['orientation'] === "landscape" ? "l" : "p";
+    let rep_name = convertToSlug(details['rep_name']);
+    const doc = new jsPDF({
+      orientation: orientation, //set orientation
+      unit: "pt", //set unit for document
+      format: "letter" //set document standard
+    });
+    doc.setFont('Arial-Unicode-normal');
+    doc.setFontSize(13);
+    doc.setFont('Arial-Unicode-Bold');
+    doc.text(details['rep_name'], 40, 40);
+    if (details['rep_desc']) {
+      doc.setFontSize(10);
+      doc.setFont('Arial-Unicode-normal')
+      doc.text(details['rep_desc'], 40, 55);
+    }
+    let height = 60;
+    
+    const rows = getRows(datalist, columns);
+    
+    doc.autoTable(columns, rows, {
+      tableWidth: details[orientation] === "landscape" ? '1150' : '700',
+      theme: 'plain',
+      startY: height ?  height + 10 : null,
+      styles: {
+        lineColor: 240,
+        lineWidth: 1,
+        valign: 'middle',
+        overflow: 'linebreak',
+        cellPadding : {top: 3, right: 4, bottom: 2, left: 1.5},
+        fontSize: 8,
+        font: 'Arial-Unicode-normal'
+      },
+      headStyles: {
+        textColor:[255, 255, 255], 
+        cellPadding : {top: 4, right: 2, bottom: 3, left: 2},
+        fillColor: [104, 104, 104],
+        lineColor: 240,
+        font: 'Arial-Unicode-Bold',
+        fontSize: 8.5 
+      },
+      bodyStyles:{
+        minCellWidth: 30,
+      },
+      margin: {top: 40}
+    });
+    const pages = doc.internal.getNumberOfPages();
+    const pageWidth = doc.internal.pageSize.width;
+    const pageHeight = doc.internal.pageSize.height;
+    doc.setFontSize(7);
+    for (let j = 1; j < pages + 1 ; j++) {
+      doc.setFont('Arial-Unicode-normal')
+      doc.setDrawColor(0, 0, 0);
+      doc.line(20, pageHeight - 30, pageWidth-20, pageHeight - 30);
+      doc.setPage(j);
+      var str = "Page " + j;
+      str = str + " of " + pages;
+      doc.text(str,pageWidth/2, pageHeight - 15, 'center');
+    }
+    
+    fileName = `/pdf/report_${rep_name}_${moment().format("MMDDYYYY_hhmmssa")}.pdf`; // path for file
+    const filePath = path.join(global.rootPath, `/public${fileName}`); // append with root
+    await doc.save(filePath);
+    
+  } catch (error) {
+    console.log(error);
+  }
+  res.status(200).json({
+    success: true,
+    data: fileName
+  });
+})
+
+/**
  * @name generateCells
  * @description generate excel cell
  * @param {string} count
@@ -311,6 +444,42 @@ function generateCells(count) {
 }
 
 /**
+ * @name getRows
+ * @description get table body rows from data list
+ * @param {array} datalist
+ * @param {array} columns
+ *
+ */
+function getRows(datalist, columns){
+  const rows = [];
+  if (datalist.length>0) {
+    for (const data of datalist) {
+      let temp = [], text = '';
+      for (const col of columns) {
+        text = { content: data[col] ? data[col] : ''}
+        temp.push(text);
+      }
+      rows.push(temp);
+    }
+  } else {
+    rows.push([{content: 'No Data Found', colSpan: columns.length, styles: { halign: 'center' }}])
+  }
+  return rows;
+}
+
+/**
+ * @name convertToSlug
+ * @description get in slug 
+ * @param {string} Text
+ *
+ */
+function convertToSlug(Text) {
+  return Text.toLowerCase()
+      .replace(/ /g, "_")
+      .replace(/[^\w-]+/g, "");
+}
+
+/**
  * @name removeFile
  * @description delete file
  * @param {string} file_path
@@ -318,7 +487,6 @@ function generateCells(count) {
  */
 exports.removeFile = catchAsyncErrors(async ({body},res) =>{
   const { file_path } = body;
-  // const decryptedPath = AES.decrypt(file_path, 'path');
   setTimeout(() => {
     const filePath = path.join(global.rootPath, `/public${file_path}`);
     fs.unlink(filePath, (err) => {
