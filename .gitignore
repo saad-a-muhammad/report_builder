@@ -5,7 +5,7 @@
 
 # Node artifact files
 node_modules/
-public/app/reports
+public/
 *.lock
 
 # Compiled Java class files
