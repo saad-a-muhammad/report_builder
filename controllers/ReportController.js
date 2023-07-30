@@ -1,10 +1,10 @@
 "use strict";
-const { sequelize } = require('../database/db_connect');
-const { QueryTypes } = sequelize;
 const Sequelize = require('sequelize');
+const { QueryTypes } = Sequelize;
 const catchAsyncErrors = require('../middlewares/catchAsyncErrors');
 const mysql = require('mysql');
 const { Pool } = require('pg');
+const db = require('../database/sqlite_connect');
 
 /**
  * @name previewReport
@@ -63,33 +63,36 @@ exports.previewReport = async ({body:{ joins, connection, table, selecedCols, fi
  */
 exports.saveReport = catchAsyncErrors(async ({body:{connection_id, name, description, data_query, data_model}},res) => {
   try {
-    const connections = await sequelize.query(`SELECT * FROM db_connections WHERE id = :connID LIMIT 1`,{
-        replacements:{
-          connID: connection_id
-        },
-        type: QueryTypes.SELECT
+    db.get(`SELECT * FROM db_connections WHERE id = ?`, [connection_id], async (err, connection) => {
+      if (err) {
+        console.error('Error executing SELECT query:', err.message);
+      } else {
+        if (connection) {
+          const insertQuery = `
+            INSERT INTO report_models (connection_id, name, description, data_query, data_model)
+            VALUES (?, ?, ?, ?, ?)
+          `;        
+          db.run(insertQuery, [connection_id, name, description, data_query, data_model], function (err) {
+            if (err) {
+              return res.status(500).json({
+                success: false,
+                message: 'Failed to create Data Model'
+              });
+            } else {
+              return res.status(200).json({
+                success: true,
+                message: 'Successfully Created Data Model!'
+              });
+            }
+          });
+        } else {
+          return res.status(200).json({
+            success: false,
+            message: 'No Connection!'
+          });
+        } 
+      }
     });
-    if (connections.length > 0) {
-      //insert report data
-      await sequelize.query(`INSERT INTO report_models (connection_id, name, description, data_query, data_model) VALUES (:connection_id, :name, :description,:data_query, :data_model)`,{
-        replacements:{
-          connection_id: connection_id,
-          name: name,
-          description: description,
-          data_query: data_query,
-          data_model: data_model
-        }
-      });
-      return res.status(200).json({
-        success: true,
-        message: 'Successfully Created Data Model!'
-      });  
-    } else {
-      return res.status(200).json({
-        success: true,
-        message: 'No Connection!'
-      });
-    }
   } catch (error) {
     console.log(error)
   }
@@ -105,18 +108,27 @@ exports.saveReport = catchAsyncErrors(async ({body:{connection_id, name, descrip
  * @returns {array} user
  */
 exports.reportList = catchAsyncErrors(async ({query: {connection_id}},res) => {
- 
-  const datalist =  await sequelize.query(`SELECT * FROM report_models WHERE connection_id = :connection_id`,{
-    replacements:{
-      connection_id: connection_id
-    },
-    type: QueryTypes.SELECT
-  });
-
-  res.status(200).json({
-    success: true,
-    data: datalist
-  });
+  try {
+    db.all(`SELECT * FROM report_models WHERE connection_id = ?`, [connection_id], (err, rows) => {
+      if (err) {
+        return res.status(500).json({
+          success: false,
+          message: 'Failed to retrieve data'
+        });
+      } else {
+        return res.status(200).json({
+          success: true,
+          data: rows
+        });
+      }
+    });
+  } catch (error) {
+    console.error('Error executing SELECT operation:', error.message);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to retrieve data'
+    });
+  }
 });
 
 
