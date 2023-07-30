@@ -1,10 +1,11 @@
 "use strict";
-const { sequelize } = require('../database/db_connect');
-const { QueryTypes } = sequelize;
 const Sequelize = require('sequelize');
+const { QueryTypes } = Sequelize;
+const db = require('../database/sqlite_connect');
 const catchAsyncErrors = require('../middlewares/catchAsyncErrors');
 const mysql = require('mysql');
 const { Pool } = require('pg');
+
 
 /**
  * @name createConnection
@@ -17,29 +18,43 @@ const { Pool } = require('pg');
  */
 exports.createConnection = catchAsyncErrors(async ({body:{connection_name, connection_type, host, port, user_name, password, user_id, default_db, default_schema }},res) => {
  
+  const insertQuery = `
+  INSERT INTO db_connections 
+    (connection_name, connection_type, host_name, host_port, host_username, host_password, user_id, default_db, default_db_schema) 
+  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+
+  const params = [
+    connection_name,
+    connection_type,
+    host,
+    port,
+    user_name,
+    password,
+    1, // user_id - change later
+    default_db,
+    default_schema ? default_schema : null
+  ];
+
   try {
-    await sequelize.query(`INSERT INTO db_connections (connection_name, connection_type, host_name, host_port, host_username, host_password, user_id, default_db, default_db_schema ) VALUES (:connection_name, :connection_type, :host_name,:host_port, :host_username, :host_password, :user_id, :default_db, :default_schema)`,{
-      replacements:{
-        connection_name: connection_name,
-        connection_type: connection_type,
-        host_name: host,
-        host_port: port,
-        host_username: user_name,
-        host_password: password,
-        user_id : 1, //user_id - change later
-        default_db: default_db,
-        default_schema: default_schema ? default_schema : null
+    db.run(insertQuery, params, function (err) {
+      if (err) {
+        console.error('Error inserting data:', err.message);
+        return res.status(200).json({
+          success: false,
+          message: err.message
+        });
+      } else {
+        console.log('Connection created!');
+        return res.status(200).json({
+          success: true,
+          message: 'Connection created!'
+        });
       }
-    });
-  
-    res.status(200).json({
-      success: true,
-      message: 'Connection created'
     });
   } catch (error) {
     res.status(200).json({
       success: false,
-      message: error
+      message: error.message
     });
   }
 });
@@ -54,21 +69,27 @@ exports.createConnection = catchAsyncErrors(async ({body:{connection_name, conne
  * @returns {string} message
  */
 exports.removeConnection = catchAsyncErrors(async ({query:{connection_id}},res) => {
- 
+  // DELETE operation
+  const deleteQuery = `DELETE FROM db_connections WHERE id = ?`;
   try {
-    await sequelize.query(`delete from db_connections where id = :id`,{
-      replacements:{
-        id: connection_id,
+    db.run(deleteQuery, connection_id, function (err) {
+      if (err) {
+        return res.status(200).json({
+          success: false,
+          message: err.message
+        });
+      } else {
+        return res.status(200).json({
+          success: true,
+          message: 'Connection removed!'
+        });
       }
     });
-    res.status(200).json({
-      success: true,
-      message: 'Connection removed!'
-    });
   } catch (error) {
+    console.error('Error executing query:', error.message);
     res.status(200).json({
       success: false,
-      message: error
+      message: error.message
     });
   }
 });
@@ -84,14 +105,28 @@ exports.removeConnection = catchAsyncErrors(async ({query:{connection_id}},res) 
  */
 exports.connectionList = catchAsyncErrors(async (req,res) => {
  
-  const connection =  await sequelize.query(`SELECT * FROM db_connections`,{
-    type: QueryTypes.SELECT
-  });
+  const selectQuery = `SELECT * FROM db_connections`;
+  try {
+    db.all(selectQuery, [], (err, rows) => {
+      if (err) {
+        return res.status(200).json({
+          success: false,
+          message: err.message
+        });
+      } else {
+        return res.status(200).json({
+          success: true,
+          data: rows
+        });
+      }
+    });
+  } catch (error) {
+    res.status(200).json({
+      success: false,
+      message: error.message
+    });
+  }
 
-  res.status(200).json({
-    success: true,
-    data: connection
-  });
 });
 
 /**
@@ -204,43 +239,42 @@ exports.testConnection = catchAsyncErrors(async ({body:{connection_type, host, p
  * @returns {array} datalist
  */
 exports.tableList = catchAsyncErrors(async ({query:{connection_id}},res) => {
-  const connections = await sequelize.query(`SELECT * FROM db_connections WHERE id = :connID`,{
-    replacements:{
-      connID: connection_id
-    },
-    type: QueryTypes.SELECT
-  });
 
-  if (connections.length > 0) {
-    const connection = connections[0];
-    const connConfig = {
-      username: connection.host_username,
-      password: connection.host_password,
-      database: connection.default_db,
-      host: connection.host_name,
-      port: connection.host_port,
-      dialect: connection.connection_type
+  db.get(`SELECT * FROM db_connections WHERE id = ?`, [connection_id], async (err, connection) => {
+    if (err) {
+      console.error('Error executing SELECT query:', err.message);
+    } else {
+      if (connection) {
+        const connConfig = {
+          username: connection.host_username,
+          password: connection.host_password,
+          database: connection.default_db,
+          host: connection.host_name,
+          port: connection.host_port,
+          dialect: connection.connection_type
+        }
+        const connSequelize = new Sequelize(connection.default_db, connection.host_username, connection.host_password, connConfig);
+    
+        const datalist = await connSequelize.query(
+        `SELECT table_name as tablename FROM information_schema.tables WHERE table_schema = :db and table_type = 'BASE TABLE';`,
+        {
+          replacements:{
+            db: connection.connection_type === 'postgres' ? connection.default_db_schema :  connection.default_db,
+          },
+          type: QueryTypes.SELECT
+        });
+        res.status(200).json({
+          success: true,
+          data: datalist
+        });
+      } else {
+        res.status(200).json({
+          success: false,
+          message: 'No connection Found!'
+        });
+      }
     }
-    const connSequelize = new Sequelize(connection.default_db, connection.host_username, connection.host_password, connConfig);
-
-    const datalist = await connSequelize.query(
-     `SELECT table_name as tablename FROM information_schema.tables WHERE table_schema = :db and table_type = 'BASE TABLE';`,
-    {
-      replacements:{
-        db: connection.connection_type === 'postgres' ? connection.default_db_schema :  connection.default_db,
-      },
-      type: QueryTypes.SELECT
-    });
-    res.status(200).json({
-      success: true,
-      data: datalist
-    });
-  } else {
-    res.status(200).json({
-      success: true,
-      message: 'No connection Found!'
-    });
-  }
+  });
 });
 
 /**
@@ -254,43 +288,41 @@ exports.tableList = catchAsyncErrors(async ({query:{connection_id}},res) => {
  */
 
 exports.viewList = catchAsyncErrors(async ({query:{connection_id}},res) => {
-  const connections = await sequelize.query(`SELECT * FROM db_connections WHERE id = :connID`,{
-    replacements:{
-      connID: connection_id
-    },
-    type: QueryTypes.SELECT
-  });
-
-  if (connections.length > 0) {
-    const connection = connections[0];
-    const connConfig = {
-      username: connection.host_username,
-      password: connection.host_password,
-      database: connection.default_db,
-      host: connection.host_name,
-      port: connection.host_port,
-      dialect: connection.connection_type
+  db.get(`SELECT * FROM db_connections WHERE id = ?`, [connection_id], async (err, connection) => {
+    if (err) {
+      console.error('Error executing SELECT query:', err.message);
+    } else {
+      if (connection) {
+        const connConfig = {
+          username: connection.host_username,
+          password: connection.host_password,
+          database: connection.default_db,
+          host: connection.host_name,
+          port: connection.host_port,
+          dialect: connection.connection_type
+        }
+        const connSequelize = new Sequelize(connection.default_db, connection.host_username, connection.host_password, connConfig);
+    
+        const datalist = await connSequelize.query(
+        `SELECT table_name as tablename FROM information_schema.tables WHERE table_schema = :db and table_type = 'VIEW';`,
+        {
+          replacements:{
+            db: connection.connection_type === 'postgres' ? connection.default_db_schema :  connection.default_db,
+          },
+          type: QueryTypes.SELECT
+        });
+        res.status(200).json({
+          success: true,
+          data: datalist
+        });
+      } else {
+        res.status(200).json({
+          success: false,
+          message: 'No connection Found!'
+        });
+      }
     }
-    const connSequelize = new Sequelize(connection.default_db, connection.host_username, connection.host_password, connConfig);
-
-    const datalist = await connSequelize.query(
-      `SELECT table_name as tablename FROM information_schema.tables WHERE table_schema = :db and table_type = 'VIEW';`,
-    {
-      replacements:{
-        db: connection.connection_type === 'postgres' ? connection.default_db_schema :  connection.default_db,
-      },
-      type: QueryTypes.SELECT
-    });
-    res.status(200).json({
-      success: true,
-      data: datalist
-    });
-  } else {
-    res.status(200).json({
-      success: true,
-      message: 'No connection Found!'
-    });
-  }
+  });
 });
 
 /**
@@ -304,47 +336,45 @@ exports.viewList = catchAsyncErrors(async ({query:{connection_id}},res) => {
  */
 
 exports.columnList = catchAsyncErrors(async ({query:{connection_id, table_name}},res) => {
-  const connections = await sequelize.query(`SELECT * FROM db_connections WHERE id = :connID`,{
-    replacements:{
-      connID: connection_id
-    },
-    type: QueryTypes.SELECT
-  });
+  db.get(`SELECT * FROM db_connections WHERE id = ?`, [connection_id], async (err, connection) => {
+    if (err) {
+      console.error('Error executing SELECT query:', err.message);
+    } else {
+      if (connection) {
+        const connConfig = {
+          username: connection.host_username,
+          password: connection.host_password,
+          database: connection.default_db,
+          host: connection.host_name,
+          port: connection.host_port,
+          dialect: connection.connection_type
+        }
+        const connSequelize = new Sequelize(connection.default_db, connection.host_username, connection.host_password, connConfig);
 
-  if (connections.length > 0) {
-    const connection = connections[0];
-    const connConfig = {
-      username: connection.host_username,
-      password: connection.host_password,
-      database: connection.default_db,
-      host: connection.host_name,
-      port: connection.host_port,
-      dialect: connection.connection_type
+        const datalist = await connSequelize.query(
+          `SELECT column_name, data_type
+          FROM information_schema.columns
+          WHERE table_name = :tbl_name
+            AND table_schema = :db;`,
+        {
+          replacements:{
+            db: connection.connection_type === 'postgres' ? connection.default_db_schema :  connection.default_db,
+            tbl_name : table_name
+          },
+          type: QueryTypes.SELECT
+        });
+        res.status(200).json({
+          success: true,
+          data: datalist
+        });
+      } else {
+        res.status(200).json({
+          success: false,
+          message: 'No connection Found!'
+        });
+      }
     }
-    const connSequelize = new Sequelize(connection.default_db, connection.host_username, connection.host_password, connConfig);
-
-    const datalist = await connSequelize.query(
-      `SELECT column_name, data_type
-      FROM information_schema.columns
-      WHERE table_name = :tbl_name
-        AND table_schema = :db;`,
-    {
-      replacements:{
-        db: connection.connection_type === 'postgres' ? connection.default_db_schema :  connection.default_db,
-        tbl_name : table_name
-      },
-      type: QueryTypes.SELECT
-    });
-    res.status(200).json({
-      success: true,
-      data: datalist
-    });
-  } else {
-    res.status(200).json({
-      success: true,
-      message: 'No connection Found!'
-    });
-  }
+  });
 });
 
 /**

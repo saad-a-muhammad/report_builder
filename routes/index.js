@@ -2,7 +2,8 @@ const express = require('express');
 const route = express.Router();
 //import controller
 const { createConnection, connectionList, testConnection, tableList, viewList, columnList, schemaList, removeConnection } = require('../controllers/ConnectionController');
-const { previewReport, saveReport, reportList, generateExcel, generateCsv, generatePdf, removeFile } = require('../controllers/ReportController')
+const { previewReport, saveReport, reportList } = require('../controllers/ReportController');
+const { generateExcel, generateCsv, generatePdf, removeFile } = require('../controllers/FilesController');
 
 
 /* -----all API routes for Report builder data----- */
