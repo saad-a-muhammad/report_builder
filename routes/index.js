@@ -2,7 +2,7 @@ const express = require('express');
 const route = express.Router();
 //import controller
 const { createConnection, connectionList, testConnection, tableList, viewList, columnList, schemaList, removeConnection } = require('../controllers/ConnectionController');
-const { previewReport, saveReport, reportList } = require('../controllers/ReportController')
+const { previewReport, saveReport, reportList, generateExcel, generateCsv, generatePdf, removeFile } = require('../controllers/ReportController')
 
 
 /* -----all API routes for Report builder data----- */
@@ -22,5 +22,10 @@ route.route('/get-report-data').post(previewReport);
 route.route('/get-reports').get(reportList);
 route.route('/save-report').post(saveReport);
 
+// exports routes
+route.route('/get-excel').post(generateExcel);
+route.route('/get-csv').post(generateCsv);
+route.route('/get-pdf').post(generatePdf);
+route.route('/remove-file').post(removeFile);
 
 module.exports = route
