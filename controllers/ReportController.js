@@ -178,13 +178,13 @@ function buildReportQuery({joins, table=[], selecedCols, filters, group_by, sort
     
     // const s_table = joins.map(e=>e.to_table); .substring(0,2) ${joins[0].to_table.substring(0,2)} ${p_table[0].substring(0,2)}
   
-    let query = `SELECT ${selecedCols.length>0 ? selecedCols.toString() : `*`} FROM ${dbSchema}.${p_table[0]} ${joins[0].join_type} 
+    let query = `SELECT ${selecedCols.length>0 ? selecedCols.toString() : `*`} FROM ${dbSchema}.${p_table[0]} ${joins[0].join_type.toUpperCase()} 
                   ${dbSchema}.${joins[0].to_table} ON 
                   ${dbSchema}.${joins[0].from_table}.${joins[0].from_column.column_name} = ${dbSchema}.${joins[0].to_table}.${joins[0].to_column.column_name}`;
     if (joins.length>1) {
       for (let i=1; i < joins.length; i++) {
         const el = joins[i];
-        query+=` ${el.join_type} ${dbSchema}.${el.to_table} ON ${dbSchema}.${el.from_table}.${el.from_column.column_name} = ${dbSchema}.${el.to_table}.${el.to_column.column_name} `
+        query+=` ${el.join_type.toUpperCase()} ${dbSchema}.${el.to_table} ON ${dbSchema}.${el.from_table}.${el.from_column.column_name} = ${dbSchema}.${el.to_table}.${el.to_column.column_name} `
       }
     } 
     console.log(`${query} ${filter_clause}`);
