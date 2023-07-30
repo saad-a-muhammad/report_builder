@@ -269,7 +269,7 @@ exports.tableList = catchAsyncErrors(async ({query:{connection_id}},res) => {
         });
       } else {
         res.status(200).json({
-          success: true,
+          success: false,
           message: 'No connection Found!'
         });
       }
@@ -317,7 +317,7 @@ exports.viewList = catchAsyncErrors(async ({query:{connection_id}},res) => {
         });
       } else {
         res.status(200).json({
-          success: true,
+          success: false,
           message: 'No connection Found!'
         });
       }
@@ -369,7 +369,7 @@ exports.columnList = catchAsyncErrors(async ({query:{connection_id, table_name}}
         });
       } else {
         res.status(200).json({
-          success: true,
+          success: false,
           message: 'No connection Found!'
         });
       }
