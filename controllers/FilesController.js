@@ -184,11 +184,11 @@ exports.generatePdf = catchAsyncErrors(async ({ body },res) => {
     doc.setFont('Arial-Unicode-normal');
     doc.setFontSize(13);
     doc.setFont('Arial-Unicode-Bold');
-    doc.text(details['rep_name'], 40, 40);
+    doc.text(`Report Name: ${details['rep_name']}`, 40, 40);
     if (details['rep_desc']) {
       doc.setFontSize(10);
       doc.setFont('Arial-Unicode-normal')
-      doc.text(details['rep_desc'], 40, 55);
+      doc.text(`Report Description: ${details['rep_desc']}`, 40, 55);
     }
     let height = 60;
     
