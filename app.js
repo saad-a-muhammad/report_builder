@@ -12,7 +12,9 @@ const routes = require('./routes');
 app.use(express.json({limit: '50mb'}));
 global.rootPath = path.join(__dirname, "");
 // set global route path
-// mkdirp.sync(path.join(global.rootPath, "/public/app/reports")); 
+mkdirp.sync(path.join(global.rootPath, "/public/csv")); 
+mkdirp.sync(path.join(global.rootPath, "/public/excels")); 
+mkdirp.sync(path.join(global.rootPath, "/public/pdf")); 
 // mkdirp.sync(path.join(global.rootPath, "/public/app/s3_bucket")); 
 // set root of the path
 app.use(express.static(path.join(global.rootPath, "/public"))); 
