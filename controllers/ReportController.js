@@ -23,9 +23,9 @@ require("../config/fonts/Arial-Unicode-Bold-normal.js");
  *
  * @returns {array} user
  */
-exports.previewReport = async ({body:{ joins, connection, table, selecedCols, filters, group_by, sort_by}},res) => {
+exports.previewReport = async ({body:{ joins, connection, table, selecedCols, filters, group_by, sort_by, limit}},res) => {
   const dbSchema = connection.connection_type == 'postgres' ? connection.default_db_schema : connection.default_db;
-  const query = buildReportQuery({joins,table, selecedCols, filters, group_by, sort_by, dbSchema});
+  const query = buildReportQuery({joins,table, selecedCols, filters, group_by, sort_by, dbSchema, limit});
   try {
     const connConfig = {
       username: connection.host_username,
@@ -149,7 +149,7 @@ exports.reportList = catchAsyncErrors(async ({query: {connection_id}},res) => {
  * @returns {string} query string
  */
 
-function buildReportQuery({joins, table=[], selecedCols, filters, group_by, sort_by, dbSchema}){
+function buildReportQuery({joins, table=[], selecedCols, filters, group_by, sort_by, dbSchema, limit}){
   try {
     let filter_clause = '', group_by_clause = '', sort_by_clause = '';
     
@@ -187,6 +187,9 @@ function buildReportQuery({joins, table=[], selecedCols, filters, group_by, sort
         query+=` ${el.join_type.toUpperCase()} ${dbSchema}.${el.to_table} ON ${dbSchema}.${el.from_table}.${el.from_column.column_name} = ${dbSchema}.${el.to_table}.${el.to_column.column_name} `
       }
     } 
+    if (limit) {
+      query += `\n\t LIMIT ${limit}`
+    }
     console.log(`${query} ${filter_clause}`);
     return `${query} ${filter_clause} \n\t ${group_by_clause} \n\t ${sort_by_clause}`;
     
