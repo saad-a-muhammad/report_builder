@@ -24,30 +24,45 @@ require("../config/fonts/Arial-Unicode-Bold-normal.js");
  * @returns {array} user
  */
 exports.previewReport = async ({body:{ joins, connection, table, selecedCols, filters, group_by, sort_by}},res) => {
-  const dbSchema = connection.connection_type == 'postgres' ? connection.default_db_schema : connection.default_db;
-  const query = buildReportQuery({joins,table, selecedCols, filters, group_by, sort_by, dbSchema});
   try {
-    const connConfig = {
-      username: connection.host_username,
-      password: connection.host_password,
-      database: connection.default_db,
-      host: connection.host_name,
-      port: connection.host_port,
-      dialect: connection.connection_type
-    }
-    const connSequelize = new Sequelize(connection.default_db, connection.host_username, connection.host_password, connConfig);
+    db.get(`SELECT * FROM db_connections WHERE id = ?`, [connection.id], async (err, conn) => {
+      if (err) {
+        console.error('Error executing SELECT query:', err.message);
+      } else {
+        if (conn) {
+          const connConfig = {
+            username: conn.host_username,
+            password: conn.host_password,
+            database: conn.default_db,
+            host: conn.host_name,
+            port: conn.host_port,
+            dialect: conn.connection_type
+          }
+          // Build report query
+          const dbSchema = conn.connection_type == 'postgres' ? conn.default_db_schema : conn.default_db;
+          const query = buildReportQuery({joins,table, selecedCols, filters, group_by, sort_by, dbSchema});
 
-    
+          const connSequelize = new Sequelize(conn.default_db, conn.host_username, conn.host_password, connConfig);
 
-    const data = await connSequelize.query(query,{
-      type: QueryTypes.SELECT
-    });
-      
-    res.status(200).json({
-      error_message: '',
-      data: data,
-      query,
-      success: true
+          const data = await connSequelize.query(query,{
+            type: QueryTypes.SELECT
+          });
+            
+          res.status(200).json({
+            error_message: '',
+            data: data,
+            query,
+            success: true
+          });
+        } else {
+          res.status(200).json({
+            error_message: 'No connection!',
+            data: [],
+            query: '',
+            success: false
+          });
+        }
+      }
     });
   } catch (error) {
     // console.log(error);
