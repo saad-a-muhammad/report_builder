@@ -6,6 +6,7 @@
 # Node artifact files
 node_modules/
 public/
+database/report_builder.db
 *.lock
 
 # Compiled Java class files
