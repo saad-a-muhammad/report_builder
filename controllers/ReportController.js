@@ -187,11 +187,19 @@ function buildReportQuery({joins, table=[], selecedCols, filters, group_by, sort
         query+=` ${el.join_type.toUpperCase()} ${dbSchema}.${el.to_table} ON ${dbSchema}.${el.from_table}.${el.from_column.column_name} = ${dbSchema}.${el.to_table}.${el.to_column.column_name} `
       }
     } 
+    if (filter_clause) {
+      query += `\n\t ${filter_clause}`
+    }
+    if (group_by_clause) {
+      query += `\n\t ${group_by_clause}`
+    }
+    if (sort_by_clause) {
+      query += `\n\t ${sort_by_clause}`
+    }
     if (limit) {
       query += `\n\t LIMIT ${limit}`
     }
-    console.log(`${query} ${filter_clause}`);
-    return `${query} ${filter_clause} \n\t ${group_by_clause} \n\t ${sort_by_clause}`;
+    return query;
     
   } catch (error) {
     console.log(error);
