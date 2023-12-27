@@ -23,9 +23,9 @@ require("../config/fonts/Arial-Unicode-Bold-normal.js");
  *
  * @returns {array} user
  */
-exports.previewReport = async ({body:{ joins, connection, table, selecedCols, filters, group_by, sort_by, limit}},res) => {
+exports.previewReport = async ({body:{ joins, connection, table, selecedCols, filters, group_by, sort_by, limit, offset}},res) => {
   const dbSchema = connection.connection_type == 'postgres' ? connection.default_db_schema : connection.default_db;
-  const query = buildReportQuery({joins,table, selecedCols, filters, group_by, sort_by, dbSchema, limit});
+  const query = buildReportQuery({joins,table, selecedCols, filters, group_by, sort_by, dbSchema, limit, offset});
   try {
     const connConfig = {
       username: connection.host_username,
@@ -69,30 +69,62 @@ exports.previewReport = async ({body:{ joins, connection, table, selecedCols, fi
  *
  * @returns {array} message
  */
-exports.saveReport = catchAsyncErrors(async ({body:{connection_id, name, description, data_query, data_model}},res) => {
+exports.saveReport = catchAsyncErrors(async ({body:{connection_id, name, description, data_query, data_model, model_id}},res) => {
   try {
     db.get(`SELECT * FROM db_connections WHERE id = ?`, [connection_id], async (err, connection) => {
       if (err) {
         console.error('Error executing SELECT query:', err.message);
       } else {
         if (connection) {
-          const insertQuery = `
-            INSERT INTO report_models (connection_id, name, description, data_query, data_model)
-            VALUES (?, ?, ?, ?, ?)
-          `;        
-          db.run(insertQuery, [connection_id, name, description, data_query, data_model], function (err) {
-            if (err) {
-              return res.status(500).json({
-                success: false,
-                message: 'Failed to create Data Model'
-              });
-            } else {
+          if (model_id) {
+            const updateQuery = `
+              UPDATE report_models
+              SET name = ?, description = ?, data_query = ?, data_model = ?
+              WHERE id = ?;
+            `;
+
+            db.run(updateQuery, [name, description, data_query, data_model, model_id], function (err) {
+              if (err) {
+                return res.status(500).json({
+                  success: false,
+                  message: 'Failed to update Data Model',
+                  mId: model_id
+                });
+              }
+              if (this.changes === 0) {
+                return res.status(404).json({
+                  success: false,
+                  message: 'Data Model not found',
+                  mId: model_id
+                });
+              }
               return res.status(200).json({
                 success: true,
-                message: 'Successfully Created Data Model!'
+                message: 'Successfully updated Data Model!',
+                mId: model_id
               });
-            }
-          });
+            });
+          } else {
+            const insertQuery = `
+              INSERT INTO report_models (connection_id, name, description, data_query, data_model)
+              VALUES (?, ?, ?, ?, ?)
+            `;        
+            db.run(insertQuery, [connection_id, name, description, data_query, data_model], function (err) {
+              if (err) {
+                return res.status(500).json({
+                  mId: null,
+                  success: false,
+                  message: 'Failed to create Data Model'
+                });
+              } else {
+                return res.status(200).json({
+                  mId: this.lastID,
+                  success: true,
+                  message: 'Successfully Created Data Model!'
+                });
+              }
+            });
+          }
         } else {
           return res.status(200).json({
             success: false,
@@ -101,6 +133,36 @@ exports.saveReport = catchAsyncErrors(async ({body:{connection_id, name, descrip
         } 
       }
     });
+  } catch (error) {
+    console.log(error)
+  }
+});
+
+
+/**
+ * @name deleteReport
+ * @description delete report
+ * @param {object} req
+ * @param {object} res
+ * @param {function} next
+ *
+ * @returns {array} message
+ */
+exports.deleteReport = catchAsyncErrors(async ({query:{model_id}}, res) => {
+  try {    
+      db.run(`DELETE FROM report_models WHERE id = ?`, model_id, function (err) {
+        if (err) {
+          return res.status(500).json({
+            success: false,
+            message: 'Failed to Remove Data Model'
+          });
+        } else {
+          return res.status(200).json({
+            success: true,
+            message: 'Successfully Removed Data Model!'
+          });
+        }
+      }); 
   } catch (error) {
     console.log(error)
   }
@@ -149,7 +211,7 @@ exports.reportList = catchAsyncErrors(async ({query: {connection_id}},res) => {
  * @returns {string} query string
  */
 
-function buildReportQuery({joins, table=[], selecedCols, filters, group_by, sort_by, dbSchema, limit}){
+function buildReportQuery({joins, table=[], selecedCols, filters, group_by, sort_by, dbSchema, limit, offset}){
   try {
     let filter_clause = '', group_by_clause = '', sort_by_clause = '';
     
@@ -168,7 +230,7 @@ function buildReportQuery({joins, table=[], selecedCols, filters, group_by, sort
     if (filters.length) {
       filter_clause = 'WHERE '
       for (const el of filters) {
-        filter_clause+=` ${el.and_or ? el.and_or : ``} ${el.column.table_name}.${el.column.column_name} ${el.operator_type} ${ el.filter_value.one ? `'${el.filter_value.one}'` : ``  } ${el.filter_value.two ? `between '${el.filter_value.two}'` : '' } `
+        filter_clause+=` ${el.and_or ? el.and_or : ``} ${el.column.table_name}.${el.column.column_name} ${el.operator_type} ${ Object.keys(el.filter_value).length > 0 && el.filter_value.one ? `'${el.filter_value.one}'` : ``  } ${Object.keys(el.filter_value).length > 0 && el.filter_value.two ? `between '${el.filter_value.two}'` : '' } `
       }
     }
     if (table.length) {
@@ -198,6 +260,9 @@ function buildReportQuery({joins, table=[], selecedCols, filters, group_by, sort
     }
     if (limit) {
       query += `\n\t LIMIT ${limit}`
+    }
+    if (offset) {
+      query += `\n\t OFFSET ${offset}`
     }
     return query;
     
