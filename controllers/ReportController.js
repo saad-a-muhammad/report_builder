@@ -214,7 +214,8 @@ exports.reportList = catchAsyncErrors(async ({query: {connection_id}},res) => {
 function buildReportQuery({joins, table=[], selecedCols, filters, group_by, sort_by, dbSchema, limit, offset}){
   try {
     let filter_clause = '', group_by_clause = '', sort_by_clause = '';
-    
+    const columns = selecedCols.length > 0 ? selecedCols.map(col => `${col.column_name} as ${col.alias}`).join(', '): null;
+
     if (group_by.length) {
       group_by_clause = 'GROUP BY '
       for (const [i,el] of group_by.entries()) {
@@ -234,13 +235,14 @@ function buildReportQuery({joins, table=[], selecedCols, filters, group_by, sort
       }
     }
     if (table.length) {
-      return `SELECT ${selecedCols.length>0 ? selecedCols.toString() : `*`} FROM ${table[0]} ${filter_clause} \n\t  ${group_by_clause} \n\t ${sort_by_clause}`;
+      return `SELECT ${columns? columns : `*`} FROM ${table[0]} ${filter_clause} \n\t  ${group_by_clause} \n\t ${sort_by_clause}`;
     }
     const p_table = joins.map(e=>e.from_table);
     
     // const s_table = joins.map(e=>e.to_table); .substring(0,2) ${joins[0].to_table.substring(0,2)} ${p_table[0].substring(0,2)}
+
   
-    let query = `SELECT ${selecedCols.length>0 ? selecedCols.toString() : `*`} FROM ${dbSchema}.${p_table[0]} ${joins[0].join_type.toUpperCase()} 
+    let query = `SELECT ${columns ? columns : `*`} FROM ${dbSchema}.${p_table[0]} ${joins[0].join_type.toUpperCase()} 
                   ${dbSchema}.${joins[0].to_table} ON 
                   ${dbSchema}.${joins[0].from_table}.${joins[0].from_column.column_name} = ${dbSchema}.${joins[0].to_table}.${joins[0].to_column.column_name}`;
     if (joins.length>1) {
