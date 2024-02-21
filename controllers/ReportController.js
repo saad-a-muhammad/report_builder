@@ -231,24 +231,24 @@ function buildReportQuery({joins, table=[], selecedCols, filters, group_by, sort
     if (filters.length) {
       filter_clause = 'WHERE '
       for (const el of filters) {
-        filter_clause+=` ${el.and_or ? el.and_or : ``} ${el.column.table_name}.${el.column.column_name} ${el.operator_type} ${ Object.keys(el.filter_value).length > 0 && el.filter_value.one ? `'${el.filter_value.one}'` : ``  } ${Object.keys(el.filter_value).length > 0 && el.filter_value.two ? `between '${el.filter_value.two}'` : '' } `
+        filter_clause+=` ${el.and_or ? el.and_or : ``} ${el.column.table_name}.${el.column.column_name} ${el.operator_type} ${ Object.keys(el.filter_value).length > 0 && el.filter_value.one ? `'${el.filter_value.one}'` : ``  } ${Object.keys(el.filter_value).length > 0 && el.filter_value.two ? `and '${el.filter_value.two}'` : '' } `
       }
     }
     if (table.length) {
-      return `SELECT ${columns? columns : `*`} FROM ${table[0]} ${filter_clause} \n\t  ${group_by_clause} \n\t ${sort_by_clause}`;
+      return `SELECT ${columns? columns : `*`} \n\t FROM ${table[0]} ${filter_clause} \n\t  ${group_by_clause} \n\t ${sort_by_clause}`;
     }
     const p_table = joins.map(e=>e.from_table);
     
     // const s_table = joins.map(e=>e.to_table); .substring(0,2) ${joins[0].to_table.substring(0,2)} ${p_table[0].substring(0,2)}
 
   
-    let query = `SELECT ${columns ? columns : `*`} FROM ${dbSchema}.${p_table[0]} ${joins[0].join_type.toUpperCase()} 
-                  ${dbSchema}.${joins[0].to_table} ON 
-                  ${dbSchema}.${joins[0].from_table}.${joins[0].from_column.column_name} = ${dbSchema}.${joins[0].to_table}.${joins[0].to_column.column_name}`;
+    let query = `SELECT ${columns ? columns : `*`} \n\t FROM ${dbSchema}.${p_table[0]} 
+                  ${joins[0].join_type.toUpperCase()} ${dbSchema}.${joins[0].to_table} ON (${dbSchema}.${joins[0].from_table}.${joins[0].from_column.column_name} = ${dbSchema}.${joins[0].to_table}.${joins[0].to_column.column_name})
+                  `;
     if (joins.length>1) {
       for (let i=1; i < joins.length; i++) {
         const el = joins[i];
-        query+=` ${el.join_type.toUpperCase()} ${dbSchema}.${el.to_table} ON ${dbSchema}.${el.from_table}.${el.from_column.column_name} = ${dbSchema}.${el.to_table}.${el.to_column.column_name} `
+        query+=` ${el.join_type.toUpperCase()} ${dbSchema}.${el.to_table} ON (${dbSchema}.${el.from_table}.${el.from_column.column_name} = ${dbSchema}.${el.to_table}.${el.to_column.column_name}) `
       }
     } 
     if (filter_clause) {
@@ -444,7 +444,8 @@ exports.generatePdf = catchAsyncErrors(async ({ body },res) => {
     const doc = new jsPDF({
       orientation: orientation, //set orientation
       unit: "pt", //set unit for document
-      format: "letter" //set document standard
+      format: "letter", //set document standard
+      compress: true
     });
     doc.setFont('Arial-Unicode-normal');
     doc.setFontSize(13);
